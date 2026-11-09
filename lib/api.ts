@@ -63,7 +63,7 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
     } catch {
       // Ignorar error de parsing
     }
-    throw new Error(errorMessage);
+    throw Object.assign(new Error(errorMessage), { status: response.status });
   }
 
   return response.json();

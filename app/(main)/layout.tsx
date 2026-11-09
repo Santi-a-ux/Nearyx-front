@@ -4,6 +4,7 @@ import { logoutAction } from "@/lib/auth";
 import { MainTopbar } from "@/components/layout/main-topbar";
 import {ScreenReaderProvider} from "@/components/providers/ScreenReaderContext";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 
 interface SessionUser {
   user_id?: string;
@@ -18,7 +19,10 @@ export default async function MainLayout({
 }: Readonly<{ children: ReactNode }>) {
   const [userProfile, authUser] = await Promise.all([
     fetchApi<SessionUser>("/users/me").catch(() => null),
-    fetchApi<SessionUser>("/auth/me").catch(() => null),
+    fetchApi<SessionUser>("/auth/me").catch((error: { status?: number }) => {
+      if (error?.status === 401) redirect("/api/session/expired");
+      return null;
+    }),
   ]);
 
   const userLabel =

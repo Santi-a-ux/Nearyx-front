@@ -63,7 +63,6 @@ export default function ExploreClient({ mapboxAccessToken = "" }: ExploreClientP
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
-  // Distancias calculadas por el mapa (user_id -> km). Solo enriquecen la lista, no deciden qué se muestra.
   const [mapDistances, setMapDistances] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -119,12 +118,10 @@ export default function ExploreClient({ mapboxAccessToken = "" }: ExploreClientP
 
     (async () => {
       try {
-        // Sin .catch silencioso: un 503 del modelo de embeddings debe verse, no parecer "sin resultados".
         const res = await fetchApi<Tutor[] | TutorsResponse>(
           `/api/tutors/?q=${encodeURIComponent(query)}&limit=50`
         );
         const list = Array.isArray(res) ? res : res?.tutors ?? [];
-        // Los resultados semánticos no traen nombre/avatar: se completan desde el perfil de usuario.
         const enriched = await Promise.all(list.map(enrichTutor));
         if (active) setSemanticTutors(enriched);
       } catch (err) {
@@ -142,7 +139,6 @@ export default function ExploreClient({ mapboxAccessToken = "" }: ExploreClientP
     };
   }, [activeSearch]);
 
-  // Hay una búsqueda en curso mientras la consulta activa no tenga respuesta todavía.
   const isSearching = activeSearch.trim() !== settledQuery;
 
   const filteredTutors = useMemo(
@@ -150,13 +146,11 @@ export default function ExploreClient({ mapboxAccessToken = "" }: ExploreClientP
     [activeSearch, semanticTutors, tutors]
   );
 
-  // La lista sale SIEMPRE de filteredTutors (lo que respondió el backend); el mapa solo aporta distancias.
   const visibleTutors = useMemo(() => {
     const withDistance = filteredTutors.map((tutor) => ({
       ...tutor,
       distance_km: mapDistances[tutor.user_id] ?? tutor.distance_km,
     }));
-    // Con búsqueda activa se conserva el orden por relevancia del backend.
     if (activeSearch.trim()) return withDistance;
     return withDistance.sort((a, b) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity));
   }, [activeSearch, filteredTutors, mapDistances]);

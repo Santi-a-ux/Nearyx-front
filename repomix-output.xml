@@ -14331,7 +14331,7 @@ export default function MessagesPage() {
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Heart, ImagePlus, MessageSquare, Send, Share2, Upload, X } from "lucide-react";
+import { ImagePlus, MessageSquare, Pencil, Send, Share2, Trash2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
@@ -14843,8 +14843,15 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
             ? Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className={cn(cardElevatedClass, "h-40 animate-pulse bg-muted/40")} />
               ))
-            : filteredPosts.map((post: FeedPost, index: number) => (
-                <PostCard key={post.id} post={post} toneIndex={index} />
+            : filteredPosts.map((post: FeedPost) => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  canManage={
+                    currentUserProfile?.role === "admin" ||
+                    (!!currentUserProfile?.user_id && String(currentUserProfile.user_id) === post.author_id)
+                  }
+                />
               ))}
           {hasNextPage ? (
             <div className="flex justify-center">
@@ -14863,11 +14870,60 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
   );
 }
 
-function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
+function PostCard({ post, canManage }: { post: FeedPost; canManage: boolean }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(post.content);
+  const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const errorFrom = async (res: Response, fallback: string) => {
+    const d = await res.json().catch(() => ({}));
+    return d.error || d.detail || d.message || fallback;
+  };
+
+  const savePost = async () => {
+    const content = editText.trim();
+    if (!content || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/gw/media/posts/${post.id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) throw new Error(await errorFrom(res, "No se pudo editar"));
+      await queryClient.refetchQueries({ queryKey: ["feed-posts"] });
+      setEditing(false);
+      toast.success("Publicación actualizada");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo editar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deletePost = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/gw/media/posts/${post.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await errorFrom(res, "No se pudo eliminar"));
+      await queryClient.refetchQueries({ queryKey: ["feed-posts"] });
+      setConfirmOpen(false);
+      toast.success("Publicación eliminada");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
+    } finally {
+      setDeleting(false);
+    }
+  };
   const { speak, stop } = useScreenReader();
 
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(12 + toneIndex);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
@@ -14938,7 +14994,6 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
           speak(
             `Publicación de ${post.author_name || "Usuario"}, ${role}. ` +
             `${post.content}. ` +
-            `${likes} me gusta. ` +
             `${commentsLoaded ? comments.length : 0} comentarios.`
           );
         }}
@@ -14949,7 +15004,6 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
           speak(
             `Publicación de ${post.author_name || "Usuario"}, ${role}. ` +
             `${post.content}. ` +
-            `${likes} me gusta. ` +
             `${commentsLoaded ? comments.length : 0} comentarios.`
           );
         }}
@@ -14968,7 +15022,28 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
               {new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(post.created_at))}
             </div>
 
-            <p className="text-body-lg mt-4 whitespace-pre-wrap">{post.content}</p>
+            {editing ? (
+              <div className="mt-4 space-y-2">
+                <Textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  maxLength={500}
+                  aria-label="Editar publicación"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={saving}
+                    onClick={() => { setEditing(false); setEditText(post.content); }}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" variant="brand" size="sm" disabled={!editText.trim() || saving}
+                    onClick={() => void savePost()}>
+                    {saving ? "Guardando..." : "Guardar"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-body-lg mt-4 whitespace-pre-wrap">{post.content}</p>
+            )}
 
             {post.image_url ? (
               <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-[#f8fbff]">
@@ -14977,37 +15052,6 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
             ) : null}
 
             <footer className="mt-5 flex flex-wrap items-center gap-1 border-t border-border pt-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  setLiked((previous) => {
-                    setLikes((value) => value + (previous ? -1 : 1));
-                    return !previous;
-                  });
-                }}
-                onMouseEnter={() =>
-                  speak(
-                    liked
-                      ? `Botón. Quitar me gusta. Esta publicación tiene ${likes} me gusta.`
-                      : `Botón. Me gusta. Esta publicación tiene ${likes} me gusta.`
-                  )
-                }
-                onFocus={() =>
-                  speak(
-                    liked
-                      ? `Botón. Quitar me gusta. Esta publicación tiene ${likes} me gusta.`
-                      : `Botón. Me gusta. Esta publicación tiene ${likes} me gusta.`
-                  )
-                }
-                onMouseLeave={stop}
-                onBlur={stop}
-              >
-                <Heart className={cn("h-4 w-4", liked && "fill-current text-primary")} />
-                <span className="text-caption">{likes}</span>
-              </Button>
               <Button type="button" variant="ghost" size="sm" className="gap-2" 
               onClick={() => void toggleComments()}
               onMouseEnter={() =>
@@ -15039,6 +15083,18 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
               onBlur={stop}>
                 <Share2 className="h-4 w-4" />
               </Button>
+              {canManage ? (
+                <>
+                  <Button type="button" variant="ghost" size="sm" aria-label="Editar publicación"
+                    onClick={() => setEditing(true)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" aria-label="Eliminar publicación"
+                    onClick={() => setConfirmOpen(true)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : null}
               {isExpert && isUuid(post.author_id) ? (
                 <div className="ml-auto">
                   <Link
@@ -15145,6 +15201,20 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
             ) : null}
           </div>
         </div>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar esta publicación?</DialogTitle>
+          </DialogHeader>
+          <p className="text-body text-muted-foreground">Esta acción no se puede deshacer desde la interfaz.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={deleting}>Cancelar</Button>
+            <Button variant="brand" onClick={() => void deletePost()} disabled={deleting}>
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }

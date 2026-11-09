@@ -46,7 +46,6 @@ async function fetchRequests(status: RequestStatus): Promise<EnrichedRequest[]> 
 
   const requests: VerificationRequest[] = data.requests || [];
 
-  // Mismo enriquecimiento N+1 que usa el dashboard para los expertos destacados.
   return Promise.all(
     requests.map(async (request) => {
       try {

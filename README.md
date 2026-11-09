@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nearyx — Frontend
 
-## Getting Started
+Plataforma web que conecta estudiantes con expertos cercanos en Medellín: mapa, feed, chat y reservas.
 
-First, run the development server:
+## Despliegue
+| | Link |
+|---|---|
+| Sitio | https://TU-FRONT.vercel.app |
+| API | https://TU-GATEWAY.onrender.com |
+| Repositorio backend | https://github.com/TU-USUARIO/TU-BACKEND |
 
+## Capturas
+Guarda las imágenes en `docs/screenshots/`.
+
+| Landing | Login |
+|---|---|
+| ![Landing](docs/screenshots/landing.png) | ![Login](docs/screenshots/login.png) |
+
+| Explorar (mapa) | Administración |
+|---|---|
+| ![Explorar](docs/screenshots/explore.png) | ![Admin](docs/screenshots/admin.png) |
+
+## Stack
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind 4 · shadcn/ui · TanStack Query · Mapbox GL
+
+## Instalación
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/TU-USUARIO/TU-FRONT.git
+cd TU-FRONT
+cp .env.example .env.local   # completa los valores
+npm install
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variables de entorno
+| Variable | Descripción |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | URL pública del gateway (sin barra final) |
+| `INTERNAL_API_URL` | Misma URL, para las rutas `/api/*` del servidor |
+| `NEXT_PUBLIC_WS_URL` | Host del WebSocket del chat |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Token público de Mapbox |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Rutas protegidas
+Sin sesión, `/dashboard`, `/explore`, `/bookings`, `/messages`, `/profile`, `/tutor` y `/admin` redirigen a `/login`. `/admin` además exige rol `admin`. Con sesión activa, `/login` y `/register` redirigen al inicio.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Credenciales de prueba
+| Rol | Correo | Contraseña |
+|---|---|---|
+| admin | admin@nearyx.dev | Admin12345! |
+| student | estudiante@nearyx.dev | Estudiante12345! |
+| tutor | experto@nearyx.dev | Experto12345! |
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Reparto del trabajo
+| Integrante | Qué construyó |
+|---|---|
+| Nombre 1 | Landing, login y registro |
+| Nombre 2 | Explorar, mapa, perfiles |
+| Nombre 3 | Chat, reservas, administración |

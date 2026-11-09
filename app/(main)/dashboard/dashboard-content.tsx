@@ -609,7 +609,6 @@ function PostCard({ post, canManage }: { post: FeedPost; canManage: boolean }) {
       setComments(Array.isArray(data.comments) ? data.comments : []);
       setCommentsLoaded(true);
     } catch {
-      // Keep comments section usable even if loading fails.
     }
   };
 

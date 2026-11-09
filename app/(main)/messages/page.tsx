@@ -249,7 +249,6 @@ function MessagesPageContent() {
         const { token } = await tokenResponse.json();
         if (cancelled) return;
 
-        // Derivamos dinámicamente el puerto/host del WebSocket usando NEXT_PUBLIC_API_URL o la ubicación actual
         const configuredWs = process.env.NEXT_PUBLIC_WS_URL?.replace(/\/+$/, "");
         const isConfiguredValid = Boolean(configuredWs) && !/^wss?:\/\/(localhost|127\.0\.0\.1)(:8000)?\/?$/.test(configuredWs as string);
 

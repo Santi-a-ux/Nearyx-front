@@ -15,7 +15,6 @@ interface AuthUser {
 export default async function AdminVerificationsPage() {
   const authUser = await fetchApi<AuthUser>("/auth/me").catch(() => null);
 
-  // La cookie ya la valida middleware.ts; aquí filtramos por rol.
   if (authUser?.role !== "admin") {
     redirect("/dashboard");
   }
