@@ -6,17 +6,17 @@ const API_URL = process.env.INTERNAL_API_URL || "http://gateway:8000";
 export async function GET(request: NextRequest) {
   try {
     const limit = Number(request.nextUrl.searchParams.get("limit") || "20");
-    const offset = Number(request.nextUrl.searchParams.get("offset") || "0");
+    const page = Number(request.nextUrl.searchParams.get("page") || "1");
 
-    const response = await fetch(`${API_URL}/media/posts?limit=${limit}&offset=${offset}`, {
+    const response = await fetch(`${API_URL}/media/posts?limit=${limit}&page=${page}`, {
       headers: { Cookie: (await cookies()).toString() },
       cache: "no-store",
     });
-    const data = await response.json().catch(() => ({ posts: [], total: 0 }));
+    const data = await response.json().catch(() => ({ data: [], pagination: { total: 0, currentPage: 1, limit: 20, totalPages: 0 } }));
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error("GET /api/feed/posts error:", error);
-    return NextResponse.json({ posts: [], total: 0 }, { status: 200 });
+    return NextResponse.json({ data: [], pagination: { total: 0, currentPage: 1, limit: 20, totalPages: 0 } }, { status: 200 });
   }
 }
 export async function POST(request: NextRequest) {

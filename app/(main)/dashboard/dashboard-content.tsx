@@ -33,8 +33,9 @@ interface FeedPost {
 }
 
 interface FeedResponse {
-  posts: FeedPost[];
-  total: number;
+  data: FeedPost[];
+  pagination?: { total: number; currentPage: number; limit: number; totalPages: number };
+  posts?: FeedPost[]; // fallback legado
 }
 
 interface TutorSidebarItem {
@@ -76,8 +77,8 @@ interface FeedComment {
   created_at: string;
 }
 
-async function fetchFeedPosts(limit = 20, offset = 0): Promise<FeedResponse> {
-  const response = await fetch(`/api/feed/posts?limit=${limit}&offset=${offset}`, { cache: "no-store" });
+async function fetchFeedPosts(limit = 20, page = 1): Promise<FeedResponse> {
+  const response = await fetch(`/api/feed/posts?limit=${limit}&page=${page}`, { cache: "no-store" });
   if (!response.ok) throw new Error("No se pudo cargar el feed");
   return response.json();
 }
@@ -243,9 +244,9 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
     queryKey: ["feed-posts"],
     queryFn: async () => {
       try {
-        return await fetchFeedPosts(20, 0);
+        return await fetchFeedPosts(20, 1);
       } catch {
-        return { posts: [], total: 0 };
+        return { data: [], pagination: { total: 0, currentPage: 1, limit: 20, totalPages: 0 } };
       }
     },
   });
@@ -285,7 +286,7 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
 
   const tutors = tutorsData?.tutors ?? [];
   const expertUserIds = new Set(tutors.map((tutor) => tutor.user_id));
-  const rawPosts = feedData?.posts ?? [];
+  const rawPosts = feedData?.data ?? feedData?.posts ?? [];
   const posts = rawPosts.map((post) => enrichFeedPost(post, currentUserProfile, expertUserIds));
   const filteredPosts = searchQuery ? posts.filter((post) => matchesKeywordSearch(`${post.content} ${post.author_name || ""}`, searchQuery)) : posts;
   const currentUserLabel = currentUserProfile?.display_name || currentUserProfile?.email?.split("@")[0] || "Tu";
