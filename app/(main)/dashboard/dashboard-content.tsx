@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Heart, ImagePlus, MessageSquare, Send, Share2, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
@@ -92,7 +92,7 @@ async function createFeedPost(content: string, imageUrl?: string, authorRole?: F
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "No se pudo publicar");
+  if (!response.ok) throw new Error(data.error || data.detail || "No se pudo publicar");
   return data;
 }
 
@@ -240,14 +240,25 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
     return () => window.removeEventListener(RATING_UPDATED_EVENT, refreshFeaturedExperts);
   }, [queryClient]);
 
-  const { data: feedData, isLoading } = useQuery<FeedResponse>({
+  const {
+    data: feedData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["feed-posts"],
-    queryFn: async () => {
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }): Promise<FeedResponse> => {
       try {
-        return await fetchFeedPosts(20, 1);
+        return await fetchFeedPosts(20, pageParam);
       } catch {
         return { data: [], pagination: { total: 0, currentPage: 1, limit: 20, totalPages: 0 } };
       }
+    },
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage.pagination;
+      return pagination && pagination.currentPage < pagination.totalPages ? pagination.currentPage + 1 : undefined;
     },
   });
 
@@ -286,7 +297,7 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
 
   const tutors = tutorsData?.tutors ?? [];
   const expertUserIds = new Set(tutors.map((tutor) => tutor.user_id));
-  const rawPosts = feedData?.data ?? feedData?.posts ?? [];
+  const rawPosts = feedData?.pages.flatMap((page) => page.data ?? page.posts ?? []) ?? [];
   const posts = rawPosts.map((post) => enrichFeedPost(post, currentUserProfile, expertUserIds));
   const filteredPosts = searchQuery ? posts.filter((post) => matchesKeywordSearch(`${post.content} ${post.author_name || ""}`, searchQuery)) : posts;
   const currentUserLabel = currentUserProfile?.display_name || currentUserProfile?.email?.split("@")[0] || "Tu";
@@ -505,6 +516,13 @@ export function DashboardContent({ mapboxAccessToken = "" }: { mapboxAccessToken
             : filteredPosts.map((post: FeedPost, index: number) => (
                 <PostCard key={post.id} post={post} toneIndex={index} />
               ))}
+          {hasNextPage ? (
+            <div className="flex justify-center">
+              <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                {isFetchingNextPage ? "Cargando..." : "Cargar más"}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -562,7 +580,7 @@ function PostCard({ post, toneIndex }: { post: FeedPost; toneIndex: number }) {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.error || "No se pudo publicar el comentario");
+        throw new Error(data.error || data.detail || "No se pudo publicar el comentario");
       }
 
       setComments((previous) => [...previous, data as FeedComment]);
